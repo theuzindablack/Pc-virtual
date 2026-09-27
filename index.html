@@ -3,93 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Office Green Fix - Versão Completa</title>
+    <title>Office Green Fix - P2P Sincronizado</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #222; font-family: sans-serif; }
         
-        /* Camadas: CSS atrás para permitir que o WebGL/HUD receba cliques primeiro */
         #webgl-canvas { position: absolute; top: 0; left: 0; z-index: 5; pointer-events: none; }
         #css-canvas { position: absolute; top: 0; left: 0; z-index: 1; }
 
         /* HUD e Controles */
         #hud { position: absolute; bottom: 20px; width: 100%; z-index: 100; pointer-events: none; display: flex; justify-content: center; }
-        .controls { pointer-events: all; display: flex; gap: 10px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 15px; }
-        button { padding: 15px; cursor: pointer; font-weight: bold; text-transform: uppercase; border-radius: 8px; border: none; background: #eee; transition: 0.2s; }
+        .controls { pointer-events: all; display: flex; gap: 10px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 15px; flex-wrap: wrap; justify-content: center; }
+        button { padding: 12px 15px; cursor: pointer; font-weight: bold; text-transform: uppercase; border-radius: 8px; border: none; background: #eee; transition: 0.2s; }
         button:hover { background: #fff; transform: scale(1.05); }
         
+        /* Menu P2P Limpo no Topo */
+        #p2p-top-bar {
+            position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 300;
+            background: rgba(0,0,0,0.7); padding: 8px 15px; border-radius: 20px; color: white;
+            display: flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .mini-btn { padding: 5px 12px; font-size: 11px; border-radius: 5px; cursor: pointer; font-weight: bold; border: none; }
+
         /* Menu de Edição */
         #menu-edit { 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: white; padding: 20px; z-index: 200; display: none; border-radius: 10px; width: 300px;
+            background: white; padding: 20px; z-index: 200; display: none; border-radius: 10px; width: 320px;
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
-        input, textarea { width: 100%; margin: 10px 0; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; }
+        textarea, #url { width: 100%; margin: 10px 0; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; font-family: monospace; }
 
         /* Joystick */
         #joy-base { position: absolute; bottom: 30px; left: 30px; width: 100px; height: 100px; background: rgba(255,255,255,0.2); border-radius: 50%; z-index: 100; pointer-events: all; touch-action: none; }
         #joy-stick { position: absolute; top: 25px; left: 25px; width: 50px; height: 50px; background: white; border-radius: 50%; }
+
+        /* Controles de Zoom */
+        #zoom-controls { position: absolute; right: 30px; bottom: 30px; z-index: 100; display: none; flex-direction: column; gap: 10px; pointer-events: all; }
+        .zoom-btn { width: 50px; height: 50px; font-size: 24px; padding: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); color: white; border-radius: 50%; }
     </style>
 </head>
 <body>
+
+<div id="p2p-top-bar">
+    <span id="p2p-status">Status: Offline</span>
+    <button class="mini-btn" id="btn-create-host" onclick="criarHost()" style="background: #28a745; color: white;">Criar Host</button>
+    <span style="color: #888;" id="separator">|</span>
+    <button class="mini-btn" id="btn-connect" onclick="conectarHost()" style="background: #007bff; color: white;">Conectar</button>
+</div>
 
 <div id="joy-base"><div id="joy-stick"></div></div>
 
 <div id="hud">
     <div class="controls">
-        <button onclick="addMesa()" style="background: #28a745; color: white;">+ Mesa</button>
+        <button onclick="addMesaUser()" style="background: #28a745; color: white;">+ Mesa</button>
         <button id="btn-sit" onclick="toggleSit()" style="background: #007bff; color: white;">Sentar</button>
         <button id="btn-edit" onclick="abrirMenu()" style="background: #f39c12; color: white; display:none;">Editar</button>
         <button id="btn-interact" onclick="toggleInteract()" style="background: #e74c3c; color: white; display:none;">Mexer na Tela</button>
     </div>
 </div>
 
+<div id="zoom-controls">
+    <button class="zoom-btn" onclick="ajustarZoom(0.3)">+</button>
+    <button class="zoom-btn" onclick="ajustarZoom(-0.3)">-</button>
+</div>
+
 <div id="menu-edit">
     <h3 style="margin-top:0">Configurar Monitor</h3>
-    <input type="text" id="url" placeholder="Link (ex:https://theuzindablack.github.io/Pvp2d-competitivo/ )">
-    <textarea id="html" rows="4" placeholder="Ou escreva um texto/HTML aqui..."></textarea>
+    <input type="text" id="url" placeholder="Link (ex: https://www.bing.com)">
+    <textarea id="html" rows="8" placeholder="Ou cole o código HTML/JS completo aqui..."></textarea>
     <button onclick="salvar()" style="background: #28a745; color: white; width: 100%;">SALVAR</button>
     <button onclick="fechar()" style="width: 100%; margin-top: 5px;">FECHAR</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
+<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 
 <script>
-/** VARIÁVEIS GLOBAIS **/
-let scene, camera, renderer, cssRenderer, player;
+let scene, camera, renderer, cssRenderer, player, remotePlayer;
 let move = { x: 0, z: 0 }, keys = {}, stations = [], target = null;
-let isSitting = false, isInteracting = false;
-let joyActive = false;
+let isSitting = false, isInteracting = false, joyActive = false, zoomOffset = 1.2;
+
+let peer, conn, isHost = false;
+const FIXED_HOST_ID = "office-green-fix-sala-oficial-12345";
 
 init();
 
 function init() {
-    // 1. Cena e Câmera
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87CEEB); 
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 5, 10);
 
-    // 2. Renderizador WebGL (Mundo 3D)
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.domElement.id = "webgl-canvas";
     document.body.appendChild(renderer.domElement);
 
-    // 3. Renderizador CSS3D (Telas de sites)
     cssRenderer = new THREE.CSS3DRenderer();
     cssRenderer.setSize(window.innerWidth, window.innerHeight);
     cssRenderer.domElement.id = "css-canvas";
     document.body.appendChild(cssRenderer.domElement);
 
-    // 4. Luzes
     const light = new THREE.DirectionalLight(0xffffff, 1);
     light.position.set(5, 10, 5);
     scene.add(light);
     scene.add(new THREE.AmbientLight(0xffffff, 0.7));
 
-    // 5. Cenário (Chão e Grade)
     const floor = new THREE.Mesh(
         new THREE.PlaneGeometry(100, 100),
         new THREE.MeshPhongMaterial({ color: 0x348C31 })
@@ -98,17 +118,29 @@ function init() {
     scene.add(floor);
     scene.add(new THREE.GridHelper(100, 50, 0x000000, 0x222222));
 
-    // 6. Jogador (Representação visual)
     player = new THREE.Group();
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.2, 0.6), new THREE.MeshPhongMaterial({ color: 0x007bff }));
     body.position.y = 0.6;
     player.add(body);
     scene.add(player);
 
-    // 7. Mesa Inicial
-    addMesa(0, -5, "https://theuzindablack.github.io/PvP-points-/");
+    remotePlayer = new THREE.Group();
+    const rBody = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.2, 0.6), new THREE.MeshPhongMaterial({ color: 0xe74c3c }));
+    rBody.position.y = 0.6;
+    remotePlayer.add(rBody);
+    remotePlayer.position.set(2, 0, 0);
+    scene.add(remotePlayer);
 
-    // Eventos de Input
+    // Mesa inicial padrão
+    addMesa(0, -5, "", `
+        <body style="background: #111; color: #00ff00; font-family: monospace; text-align: center; padding-top: 50px;">
+            <h1>SALA MULTIPLAYER P2P</h1>
+            <p id="contador">Cliques: 0</p>
+            <button onclick="cliques++; document.getElementById('contador').innerText = 'Cliques: ' + cliques;" style="padding: 15px 30px; font-size: 20px; cursor: pointer;">CLIQUE AQUI</button>
+            <script>let cliques = 0;<\/script>
+        </body>
+    `, false);
+
     window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
     window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
     window.addEventListener('resize', onWindowResize);
@@ -117,16 +149,120 @@ function init() {
     animate();
 }
 
-/** FUNÇÕES DE CRIAÇÃO **/
-function addMesa(x = player.position.x, z = player.position.z - 4, url = "") {
-    const group = new THREE.Group();
+/** SISTEMA P2P E SINCRONIZAÇÃO **/
+function criarHost() {
+    peer = new Peer(FIXED_HOST_ID);
+
+    peer.on('open', () => {
+        isHost = true;
+        document.getElementById('p2p-status').innerHTML = "Status: <b style='color:#28a745;'>Host Ativo (Você)</b>";
+        document.getElementById('btn-create-host').style.display = 'none';
+        document.getElementById('btn-connect').style.display = 'none';
+        document.getElementById('separator').style.display = 'none';
+    });
+
+    peer.on('error', (err) => {
+        if(err.type === 'unavailable-id') {
+            alert("Já existe um host ativo nesta sala! Você não pode criar outro. Apenas clique em 'Conectar'.");
+            document.getElementById('p2p-status').innerHTML = "Status: <b style='color:#f39c12;'>Host já existe</b>";
+        }
+    });
+
+    peer.on('connection', (connection) => {
+        conn = connection;
+        configurarConexao();
+        document.getElementById('p2p-status').innerHTML = "Status: <b style='color:#28a745;'>Amigo Conectado!</b>";
+        
+        // Envia as mesas existentes para o novo jogador que entrou
+        setTimeout(() => {
+            stations.forEach((st, index) => {
+                conn.send({
+                    type: 'add_mesa',
+                    index: index,
+                    x: st.group.position.x,
+                    z: st.group.position.z,
+                    url: st.url,
+                    html: st.html
+                });
+            });
+        }, 500);
+    });
+}
+
+function conectarHost() {
+    peer = new Peer();
+
+    peer.on('open', () => {
+        conn = peer.connect(FIXED_HOST_ID);
+        configurarConexao();
+        document.getElementById('p2p-status').innerHTML = "Status: <b>Conectando...</b>";
+    });
+
+    peer.on('error', () => {
+        alert("Não foi possível conectar ao Host. Verifique se ele já foi criado.");
+        document.getElementById('p2p-status').innerHTML = "Status: <b style='color:#e74c3c;'>Falha na Conexão</b>";
+    });
+}
+
+function configurarConexao() {
+    conn.on('open', () => {
+        document.getElementById('p2p-status').innerHTML = "Status: <b style='color:#28a745;'>Conectado!</b>";
+        document.getElementById('btn-create-host').style.display = 'none';
+        document.getElementById('btn-connect').style.display = 'none';
+        document.getElementById('separator').style.display = 'none';
+    });
+
+    conn.on('data', (data) => {
+        if(data.type === 'pos') {
+            remotePlayer.position.set(data.x, data.y, data.z);
+        } else if(data.type === 'update_screen') {
+            // Atualiza o código do monitor em tempo real quando o outro editar
+            if(stations[data.index]) {
+                stations[data.index].url = data.url;
+                stations[data.index].html = data.html;
+                renderTela(stations[data.index]);
+            }
+        } else if(data.type === 'add_mesa') {
+            // Cria a mesa caso o outro jogador tenha criado
+            if(!stations[data.index]) {
+                addMesa(data.x, data.z, data.url, data.html, true);
+            }
+        }
+    });
+
+    conn.on('close', () => {
+        alert('A conexão foi perdida.');
+        location.reload();
+    });
+}
+
+/** FUNÇÕES DE CRIAÇÃO E SINCRONIZAÇÃO DE MESA **/
+function addMesaUser() {
+    let x = player.position.x;
+    let z = player.position.z - 4;
+    let index = stations.length;
     
-    // Objeto 3D: Mesa
+    addMesa(x, z, "", "", false);
+
+    // Envia criação da mesa para o outro jogador
+    if(conn && conn.open) {
+        conn.send({
+            type: 'add_mesa',
+            index: index,
+            x: x,
+            z: z,
+            url: "",
+            html: ""
+        });
+    }
+}
+
+function addMesa(x, z, url = "", html = "", remoteCall = false) {
+    const group = new THREE.Group();
     const desk = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 1.5), new THREE.MeshPhongMaterial({color: 0x444}));
     desk.position.y = 0.8;
     group.add(desk);
 
-    // Pernas da mesa
     const legGeo = new THREE.BoxGeometry(0.1, 0.8, 0.1);
     for(let i of [-1, 1]) for(let j of [-0.5, 0.5]) {
         const leg = new THREE.Mesh(legGeo, new THREE.MeshPhongMaterial({color: 0x222}));
@@ -134,73 +270,61 @@ function addMesa(x = player.position.x, z = player.position.z - 4, url = "") {
         group.add(leg);
     }
 
-    // A Tela (Elemento HTML)
     const div = document.createElement('div');
-    div.style.width = '800px';
-    div.style.height = '500px';
-    div.style.background = 'white';
-    div.style.border = "10px solid #111";
+    div.style.width = '800px'; div.style.height = '500px'; div.style.background = 'white'; div.style.border = "10px solid #111";
     
     const cssObj = new THREE.CSS3DObject(div);
-    cssObj.position.set(0, 1.5, -0.6); // Posição acima da mesa
+    cssObj.position.set(0, 1.5, -0.6);
     cssObj.scale.set(1.8/800, 1.1/500, 1);
     group.add(cssObj);
 
     group.position.set(x, 0, z);
     scene.add(group);
 
-    const st = { group, div, url, html: "" };
+    const st = { group, div, url, html };
     stations.push(st);
     renderTela(st);
 }
 
 function renderTela(st) {
-    if(st.url) {
+    if(st.url && st.url.trim() !== "") {
         st.div.innerHTML = `<iframe src="${st.url}" style="width:100%; height:100%; border:none;"></iframe>`;
+    } else if(st.html && st.html.trim() !== "") {
+        st.div.innerHTML = `<iframe srcdoc="${st.html.replace(/"/g, '&quot;')}" style="width:100%; height:100%; border:none;"></iframe>`;
     } else {
-        st.div.innerHTML = `<div style="padding:40px; font-size:40px; text-align:center; font-family:sans-serif;">${st.html || "Vazio"}</div>`;
+        st.div.innerHTML = `<div style="padding:40px; font-size:30px; text-align:center; font-family:sans-serif; color:#555;">Monitor Vazio</div>`;
     }
 }
 
-/** INTERAÇÕES **/
 function toggleSit() {
     if(!target && !isSitting) return;
     isSitting = !isSitting;
-    
     const btnSit = document.getElementById('btn-sit');
     const btnInteract = document.getElementById('btn-interact');
+    const zoomControls = document.getElementById('zoom-controls');
 
     if(isSitting) {
-        btnSit.innerText = "Levantar";
-        btnSit.style.background = "#555";
-        btnInteract.style.display = "block";
-        // Trava o player na frente da mesa
+        btnSit.innerText = "Levantar"; btnSit.style.background = "#555";
+        btnInteract.style.display = "block"; zoomControls.style.display = "flex"; zoomOffset = 1.2;
         player.position.set(target.group.position.x, 0, target.group.position.z + 1);
     } else {
-        btnSit.innerText = "Sentar";
-        btnSit.style.background = "#007bff";
-        btnInteract.style.display = "none";
+        btnSit.innerText = "Sentar"; btnSit.style.background = "#007bff";
+        btnInteract.style.display = "none"; zoomControls.style.display = "none";
         if(isInteracting) toggleInteract();
     }
 }
+
+function ajustarZoom(v) { zoomOffset = Math.max(0.5, Math.min(zoomOffset + v, 2.5)); }
 
 function toggleInteract() {
     isInteracting = !isInteracting;
     const canvasCSS = document.getElementById('css-canvas');
     const btn = document.getElementById('btn-interact');
-
-    if(isInteracting) {
-        canvasCSS.style.zIndex = "10"; // Traz a tela para frente dos botões
-        btn.innerText = "Parar de Mexer";
-        btn.style.background = "#222";
-    } else {
-        canvasCSS.style.zIndex = "1"; // Volta a tela para o fundo
-        btn.innerText = "Mexer na Tela";
-        btn.style.background = "#e74c3c";
-    }
+    canvasCSS.style.zIndex = isInteracting ? "10" : "1";
+    btn.innerText = isInteracting ? "Parar de Mexer" : "Mexer na Tela";
+    btn.style.background = isInteracting ? "#222" : "#e74c3c";
 }
 
-/** MENU DE EDIÇÃO **/
 function abrirMenu() {
     if(!target) return;
     document.getElementById('url').value = target.url;
@@ -216,33 +340,33 @@ function salvar() {
         target.html = document.getElementById('html').value;
         renderTela(target);
         fechar();
+
+        // Envia as alterações do código/monitor em tempo real para o outro jogador
+        if(conn && conn.open) {
+            let index = stations.indexOf(target);
+            conn.send({
+                type: 'update_screen',
+                index: index,
+                url: target.url,
+                html: target.html
+            });
+        }
     }
 }
 
-/** JOYSTICK E MOVIMENTO **/
 function setupJoystick() {
     const joyBase = document.getElementById('joy-base');
     const joyStick = document.getElementById('joy-stick');
-
     joyBase.addEventListener('touchstart', () => joyActive = true);
-    window.addEventListener('touchend', () => {
-        joyActive = false;
-        joyStick.style.transform = `translate(0px, 0px)`;
-        move.x = 0; move.z = 0;
-    });
-
+    window.addEventListener('touchend', () => { joyActive = false; joyStick.style.transform = `translate(0px, 0px)`; move.x = 0; move.z = 0; });
     window.addEventListener('touchmove', e => {
         if (!joyActive) return;
         const rect = joyBase.getBoundingClientRect();
-        const centerX = rect.left + rect.width/2;
-        const centerY = rect.top + rect.height/2;
         const touch = e.touches[0];
-
-        let dx = touch.clientX - centerX;
-        let dy = touch.clientY - centerY;
+        let dx = touch.clientX - (rect.left + rect.width/2);
+        let dy = touch.clientY - (rect.top + rect.height/2);
         const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 40);
         const angle = Math.atan2(dy, dx);
-
         move.x = (Math.cos(angle) * dist) / 40;
         move.z = (Math.sin(angle) * dist) / 40;
         joyStick.style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`;
@@ -256,33 +380,32 @@ function onWindowResize() {
     cssRenderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-/** LOOP DE ANIMAÇÃO **/
-function animate() {
+let lastSend = 0;
+function animate(time) {
     requestAnimationFrame(animate);
     
     if(!isSitting) {
-        // Movimentação
         let dirX = (keys['d']?1:0) - (keys['a']?1:0) + move.x;
         let dirZ = (keys['s']?1:0) - (keys['w']?1:0) + move.z;
         
-        player.position.x += dirX * 0.15;
-        player.position.z += dirZ * 0.15;
+        if (dirX !== 0 || dirZ !== 0) {
+            player.position.x += dirX * 0.15;
+            player.position.z += dirZ * 0.15;
+
+            if(conn && conn.open && time - lastSend > 50) {
+                conn.send({ type: 'pos', x: player.position.x, y: player.position.y, z: player.position.z });
+                lastSend = time;
+            }
+        }
         
-        // Câmera segue o jogador
         camera.position.lerp(new THREE.Vector3(player.position.x, 5, player.position.z + 7), 0.1);
         camera.lookAt(player.position);
 
-        // Busca mesa próxima
         target = null;
-        stations.forEach(s => {
-            if(player.position.distanceTo(s.group.position) < 3) target = s;
-        });
-        
+        stations.forEach(s => { if(player.position.distanceTo(s.group.position) < 3) target = s; });
         document.getElementById('btn-edit').style.display = target ? "block" : "none";
     } else if(target) {
-        // Câmera foca na tela da mesa atual
-        const camTarget = new THREE.Vector3(target.group.position.x, 1.8, target.group.position.z + 1.2);
-        camera.position.lerp(camTarget, 0.1);
+        camera.position.lerp(new THREE.Vector3(target.group.position.x, 1.8, target.group.position.z + zoomOffset), 0.1);
         camera.lookAt(target.group.position.x, 1.5, target.group.position.z - 0.5);
     }
 
